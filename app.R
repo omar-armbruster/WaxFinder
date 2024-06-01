@@ -1,0 +1,120 @@
+
+
+library(shiny)
+library(readxl)
+library(tidyverse)
+Data <- read_excel("Data.xlsx")
+brands <- c()
+for(i in 1:nrow(Data)){
+  brands[i] <- Data$Brand[i]
+}
+brands<- unique(brands)
+snowCond <- c()
+dummies <- select(Data, -Brand, 
+       -Name, 
+       -Type, 
+       -Medium, 
+       -`Min Temp`, 
+       -`Max Temp`, 
+       -`Snow Conditions`, 
+       -Notes)
+  
+snowCond <- colnames(dummies)
+
+
+
+# Define UI for application that draws a histogram
+ui <- fluidPage(
+
+    # Application title
+    titlePanel("Wax Finder"),
+
+    # Sidebar with a slider input for number of bins 
+  tabsetPanel(
+    tabPanel(
+    "Kick",
+    sidebarLayout(
+        sidebarPanel(
+          selectInput(
+            inputId = "type",
+            label = "Wax Medium",
+            c("All", "Hardwax", "Klister", "Hardwax/Klister", "Hardwax Binder", "Klister Binder")
+          ),
+          
+          numericInput(inputId = "temp", 
+                         label = "Temperature (Celsius)",
+                         value = 0),
+          sliderInput(inputId = "tempVariation",
+                      label = "Temperature Variation",
+                      min = -5,
+                      max = 5,
+                      value  = 0),
+            
+          checkboxGroupInput(inputId = "brand",
+                             label = "Brand",
+                             choices = brands,
+                             selected = brands
+                             ),
+          checkboxGroupInput(inputId = "snowConditions",
+                             label = "Snow Conditions",
+                             choices = snowCond
+                             )
+         ## submitButton(text = "Find Wax", icon = NULL, width = NULL)
+            
+        ),
+       
+
+        # Show a plot of the generated distribution
+        mainPanel(
+          tableOutput("kickRank")
+        )
+      )
+    ), 
+  tabPanel("Glide"),
+  tabPanel("Data")
+   )
+)
+
+# Define server logic required to draw a histogram
+server <- function(input, output) {
+    
+    output$waxRank <- renderDataTable({
+      Data %>%
+      filter((Data$`Min Temp` <= input$temp)
+             & (Data$`Max Temp` >= input$temp)
+             & Data$Brand %in% input$brand)
+    })
+    output$kickRank <- renderTable({Data %>%
+        filter((Data$`Min Temp` <= input$temp)
+               & (Data$`Max Temp` >= input$temp)
+               & (Data$Type == "Kick")
+               & Data$Brand %in% input$brand)%>%
+        {if(input$type != "All") filter(., `Medium` == input$type) else(.)}%>%
+        mutate(., Sum = rowSums(select_if(., colnames(.) %in% input$snowConditions))) %>%
+        mutate(., Sum = ifelse(((input$temp + input$tempVariation) <= .$`Max Temp`) && (input$temp + input$tempVariation >= .$`Min Temp`),
+                                Sum + 1, Sum)) %>%
+        arrange(., desc(.$Sum))},
+      digits = 0,
+      striped = TRUE)
+    
+    
+    output$glideRank <- renderTable({Data %>%
+        filter((Data$`Min Temp` <= input$temp)
+               & (Data$`Max Temp` >= input$temp)
+               & (Data$Type == "Glide")
+               & Data$Brand %in% input$brand) %>%
+        {if(input$type != "All") filter(., `Medium` == input$type) else(.)}
+    })
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+
+
+
+
+###Notes 
+#Figure out dummy column categories
+#Separate Binder from other kickwax
+#Create separate tabs for kick and glide (calculates whether binder/block are needed)
+#Strcuture???
