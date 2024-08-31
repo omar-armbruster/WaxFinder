@@ -44,11 +44,11 @@ ui <- fluidPage(
           numericInput(inputId = "temp", 
                          label = "Temperature (Celsius)",
                          value = 0),
-          sliderInput(inputId = "tempVariation",
-                      label = "Temperature Variation",
-                      min = -5,
-                      max = 5,
-                      value  = 0),
+          # sliderInput(inputId = "tempVariation",
+          #             label = "Temperature Variation",
+          #             min = -5,
+          #             max = 5,
+          #             value  = 0),
             
           checkboxGroupInput(inputId = "brand",
                              label = "Brand",
@@ -84,18 +84,28 @@ server <- function(input, output) {
              & (Data$`Max Temp` >= input$temp)
              & Data$Brand %in% input$brand)
     })
+    # output$kickRank <- renderTable({Data %>%
+    #     filter((Data$`Min Temp` <= input$temp)
+    #            & (Data$`Max Temp` >= input$temp)
+    #            & (Data$Type == "Kick")
+    #            & Data$Brand %in% input$brand)%>%
+    #     {if(input$type != "All") filter(., `Medium` == input$type) else(.)}%>%
+    #     mutate(., Sum = rowSums(select_if(., colnames(.) %in% input$snowConditions))) %>%
+    #     mutate(., Sum = ifelse(((input$temp + input$tempVariation) <= .$`Max Temp`) && (input$temp + input$tempVariation >= .$`Min Temp`),
+    #                             Sum + 1, Sum)) %>%
+    #     arrange(., desc(.$Sum))},
+    #   digits = 0,
+    #   striped = TRUE)
+    # 
     output$kickRank <- renderTable({Data %>%
         filter((Data$`Min Temp` <= input$temp)
                & (Data$`Max Temp` >= input$temp)
                & (Data$Type == "Kick")
                & Data$Brand %in% input$brand)%>%
         {if(input$type != "All") filter(., `Medium` == input$type) else(.)}%>%
-        mutate(., Sum = rowSums(select_if(., colnames(.) %in% input$snowConditions))) %>%
-        mutate(., Sum = ifelse(((input$temp + input$tempVariation) <= .$`Max Temp`) && (input$temp + input$tempVariation >= .$`Min Temp`),
-                                Sum + 1, Sum)) %>%
-        arrange(., desc(.$Sum))},
-      digits = 0,
-      striped = TRUE)
+        {if(length(input$snowConditions) > 0) filter_at(., input$snowConditions, all_vars(. > 0)) else(.)}},
+        digits = 0,
+        striped = TRUE)
     
     
     output$glideRank <- renderTable({Data %>%
